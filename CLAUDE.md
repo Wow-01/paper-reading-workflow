@@ -1,8 +1,21 @@
 # 项目指令
 
-## 文档阅读
+## 文档阅读（重要提示）
 
-写任何代码前都应完整阅读 D:\paper-reading workflow\memory-bank\工作流产品需求.md 和 D:\paper-reading workflow\memory-bank\architt.md，每完成一个重大功能或者里程碑后必须更新 D:\paper-reading workflow\memory-bank\architt.md
+写任何代码前必须完整阅读以下文件：
+- D:\paper-reading workflow\memory-bank\工作流产品需求.md
+- D:\paper-reading workflow\memory-bank\architt.md
+
+每完成一个重大功能或者里程碑后，必须更新以下文件：
+- D:\paper-reading workflow\memory-bank\architt.md
+- D:\paper-reading workflow\memory-bank\progress.md
+
+## 执行流程
+
+1. 使用 "Plan Mode"（shift+tab）确认满意后再执行
+2. 每完成一步就提交 Git
+3. 新建聊天（/new 或 /clear）继续下一步
+4. 出问题时用 /rewind 回退
 
 ## 编码准则（Karpathy Guidelines）
 
