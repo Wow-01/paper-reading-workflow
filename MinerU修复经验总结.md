@@ -168,6 +168,35 @@ requests.packages.urllib3.disable_warnings()
 
 ---
 
+### 问题5.1：layoutreader 模型 SSL 错误
+
+**现象**：
+```
+'(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /hantian/layoutreader/resolve/main/config.json (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1006)')))")
+```
+
+**原因**：
+magic-pdf 在 auto 模式下会尝试下载 layoutreader 模型（用于优化阅读顺序），但访问 huggingface.co 时 SSL 证书验证失败。
+
+**影响**：
+- auto 模式会卡在 Processing pages 阶段
+- 其他步骤（Layout、MFD、MFR、OCR）都已完成
+
+**解决方案**：
+在调用 do_parse 之前禁用 SSL 验证：
+
+```python
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+```
+
+**关键点**：
+- 必须在导入 magic_pdf 之前设置
+- txt 模式不需要 layoutreader，可以正常工作
+- auto 模式质量更好（公式格式正确），建议使用
+
+---
+
 ### 问题6：模型目录结构不匹配
 
 **现象**：
