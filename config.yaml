@@ -1,0 +1,17 @@
+# 论文阅读工作流配置
+
+vision:
+  enabled: true  # V1默认开启视觉能力
+
+mineru:
+  path: magic-pdf  # MinerU命令路径
+
+outputs:
+  dir: outputs/  # 输出根目录
+
+thresholds:
+  clean_md_min_chars: 800  # clean_md最少字符数
+
+logging:
+  level: INFO  # 日志级别
+  format: "%(asctime)s [%(levelname)s] [%(name)s] %(message)s"
