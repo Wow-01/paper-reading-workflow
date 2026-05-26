@@ -32,16 +32,18 @@ PDF 判定 → 提取 → 清洗 → PageIndex → 一页纸总结 → 公式推
 - PageIndex（索引与定位）
   - 输入：clean_md + 章节结构映射
   - 输出：outputs/<pdf_stem>/pageindex/index.jsonl 与 index.meta.json
-  - 查询接口：脚本封装（关键词 + 结构定位）。
+  - 查询：V1 不实现独立查询脚本，Claude 直接读取 JSONL 定位
 - Academic Researcher Skill（一页纸结构化总结）
   - 位置：PageIndex 之后。
-  - 输入：clean_md + 章节映射 + 可选 index.meta
+  - 输入：prepare_summary_input.py 生成的结构化输入文件
   - 输出：outputs/<pdf_stem>/summary/one-pager.md
+  - 调用方式：脚本准备数据 + Claude 手动调用 skill
   - 安装：`npx skills add shubhamsaboo/awesome-llm-apps@academic-researcher -g -y`
 - math-reasoning skill（公式推导补全）
   - 位置：一页纸总结之后，可按需触发。
-  - 输入：clean_md 中的公式块 + 相关上下文段落。
+  - 输入：prepare_formula_input.py 生成的公式块 + 上下文文件
   - 输出：outputs/<pdf_stem>/summary/formula-notes.md
+  - 调用方式：脚本准备数据 + Claude 手动调用 skill
   - 安装：`npx skills add lingzhi227/agent-research-skills@math-reasoning -g -y`
 
 ### 2.1 关键输入输出契约
@@ -76,7 +78,11 @@ PDF 判定 → 提取 → 清洗 → PageIndex → 一页纸总结 → 公式推
 - 能力判断（配置驱动）
   - 在配置中声明 `vision.enabled=true/false` 或提供模型名。
   - 未配置或模型不可用时自动降级。
-- 调用契约（内部接口）
+- V1 实现方案（最简方案）
+  - 脚本侧：在交付指引.md 中列出 `raw_md/images/` 目录下的图片路径
+  - Claude 侧：在对话中直接查看图片（Claude Code 支持图片输入）
+  - 降级方案：无法查看图片时，基于图注 + 正文推断
+- 调用契约（内部接口，后续扩展用）
   - `analyze_image(image_path, caption, context)`
   - 返回：`{summary, evidence, confidence, mode}`
   - `mode` 取值：`vision` 或 `caption-only`，用于显式标注推断方式。
@@ -87,9 +93,10 @@ PDF 判定 → 提取 → 清洗 → PageIndex → 一页纸总结 → 公式推
   - 字段建议：`section_path`, `anchor_id`, `text`, `source_ref`。
 - 元数据：index.meta.json
   - 记录章节树、页码映射、统计信息。
-- 查询入口：脚本封装
-  - `pageindex_query.py --index <path> --question "..."`
-  - 返回定位片段 + 章节路径。
+- 查询入口：V1 不实现独立查询脚本
+  - JSONL 格式支持 grep/文本搜索
+  - Claude 可直接读取 index.jsonl 进行定位
+  - 后续扩展时可添加 `pageindex_query.py --index <path> --question "..."`
 
 ## 6. 依赖与版本管理
 
@@ -148,12 +155,14 @@ PDF 判定 → 提取 → 清洗 → PageIndex → 一页纸总结 → 公式推
   - 结构清洗与图注对齐。
 - build_pageindex.py
   - 输出 index.jsonl 与 index.meta.json。
-- summarize_one_pager.py
-  - 调用 academic-researcher 生成一页纸总结。
-- build_formula_notes.py
-  - 调用 math-reasoning 生成推导补全。
+- prepare_summary_input.py
+  - 读取 clean_md，生成结构化输入文件供 Claude 调用 skill。
+- prepare_formula_input.py
+  - 提取公式块和上下文，生成输入文件供 Claude 调用 skill。
 - write_failure_report.py
   - 失败原因记录与可重试建议。
+
+说明：V1 采用"脚本准备 + Claude 手动调用"模式，脚本负责数据准备，Claude 负责调用 skill 生成总结。
 
 ## 11. 说明与取舍
 
