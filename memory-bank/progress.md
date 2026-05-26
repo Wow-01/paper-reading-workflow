@@ -17,4 +17,13 @@
 - memory-bank/实施计划.md（12.1、15.2、15.3、15.9、15.10、16.4节）
 - memory-bank/tech-stack.md（2、4、5、10节）
 
+## 实施计划修正（一致性问题）
+1. **阶段3脚本名称**：更新为 prepare_summary_input.py / prepare_formula_input.py
+2. **阶段3职责**：明确为"Skill调用与结果生成"，由Claude手动执行
+3. **阶段2扩展**：加入 prepare_summary_input.py、prepare_formula_input.py、write_failure_report.py
+4. **交付指引.md**：明确由 run_workflow.py 自动生成
+5. **M1验收状态**：更新为 ✅
+6. **15.1节安装状态**：更新为 ✅
+7. **19节决断清单**：更新MinerU状态，新增3项决断（11-13）
+
 **下一步**：阶段2基础功能开发 - 创建scripts/run_workflow.py
