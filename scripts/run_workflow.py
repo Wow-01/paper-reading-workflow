@@ -100,8 +100,7 @@ def process_single(pdf_path: str, config: dict) -> dict:
     try:
         # 步骤1: MinerU 提取
         logger.info("[步骤1/6] MinerU 提取")
-        mineru_path = config["mineru"]["path"]
-        raw_md_path = extract_with_mineru(pdf_path, raw_md_dir, mineru_path)
+        raw_md_path = extract_with_mineru(pdf_path, raw_md_dir)
 
         # 步骤2: 检查是否需要 pdfplumber 补充
         logger.info("[步骤2/6] 检查提取质量")
@@ -262,6 +261,21 @@ def _generate_delivery_guide(
         ])
 
     lines.extend([
+        "",
+        "## 查询功能",
+        "",
+        "处理完成后，可以使用以下命令查询索引：",
+        "",
+        "```bash",
+        "# 基本查询",
+        f'python scripts/query_index.py pageindex/index.jsonl "Mpemba effect"',
+        "",
+        "# 中英文混合查询",
+        f'python scripts/query_index.py pageindex/index.jsonl "量子 Monte Carlo"',
+        "",
+        "# 指定返回结果数量",
+        f'python scripts/query_index.py pageindex/index.jsonl "Hubbard model" 10',
+        "```",
         "",
         "## 输出位置",
         "",
