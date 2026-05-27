@@ -107,6 +107,32 @@ python scripts/run_workflow.py --file projects/02-Imaginary-time-Mpemba-effect.p
 **测试文件**：
 - `scripts/test_retrieval_comparison.py` - 测试脚本
 - `outputs/retrieval_comparison_report.json` - 测试报告JSON
+
+### 查询功能集成 ✅
+
+**新增文件**：
+- `scripts/query_index.py` - 索引查询模块
+
+**功能特点**：
+- 支持中英文混合查询（如"量子 Monte Carlo"）
+- 关键词匹配 + 语义排序
+- 命令行接口
+
+**使用示例**：
+```bash
+# 基本查询
+python scripts/query_index.py pageindex/index.jsonl "Mpemba effect"
+
+# 中英文混合查询
+python scripts/query_index.py pageindex/index.jsonl "量子 Monte Carlo"
+
+# 指定返回结果数量
+python scripts/query_index.py pageindex/index.jsonl "Hubbard model" 10
+```
+
+**集成到工作流**：
+- 在交付指引.md 中添加了查询示例
+- 处理完成后可直接查询索引
 - `outputs/retrieval_comparison_analysis.md` - 详细分析报告
 
 **下一步**：
