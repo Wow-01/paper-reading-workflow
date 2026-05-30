@@ -132,33 +132,73 @@ class IndexSearcher:
         return scored
 
     def _semantic_rank(self, query: str, candidates: List[Dict]) -> List[Dict]:
-        """语义排序（基于关键词密度和位置）"""
+        """语义重排序（多因素综合评分）
+
+        评分因素：
+        1. 完全匹配查询（权重最高）
+        2. 关键词位置（开头匹配更重要）
+        3. 关键词密度（匹配词数/总词数）
+        4. 关键词连续性（相邻关键词加分）
+        5. 多关键词同时命中（覆盖度）
+        6. 摘要匹配加分
+        """
         for candidate in candidates:
             text = candidate.get("text", "").lower()
+            summary = candidate.get("summary", "").lower()
 
             # 语义分数
             semantic_score = 0
 
-            # 1. 完全匹配查询
+            # 1. 完全匹配查询（权重最高：+15）
             if query in text:
+                semantic_score += 15
+            elif query in summary:
                 semantic_score += 10
 
-            # 2. 关键词密度
+            # 2. 关键词位置加分（开头匹配更重要）
+            matched_kw = candidate.get("matched_keywords", [])
+            for kw in matched_kw:
+                # 在文本前100字符中匹配，加分更高
+                if kw in text[:100]:
+                    semantic_score += 3
+                elif kw in text[:200]:
+                    semantic_score += 1
+
+            # 3. 关键词密度（匹配词数/总词数）
             keyword_score = candidate.get("keyword_score", 0)
             text_len = max(len(text), 1)
             keyword_density = keyword_score / text_len * 100
             semantic_score += keyword_density
 
-            # 3. 关键词连续性（相邻关键词加分）
-            matched_kw = candidate.get("matched_keywords", [])
+            # 4. 关键词连续性（相邻关键词加分）
             for i in range(len(matched_kw) - 1):
                 kw1, kw2 = matched_kw[i], matched_kw[i+1]
+                # 在文本中检查连续性
                 pattern = re.escape(kw1) + r'.{0,30}' + re.escape(kw2)
                 if re.search(pattern, text):
+                    semantic_score += 3
+                # 在摘要中检查连续性
+                if re.search(pattern, summary):
                     semantic_score += 2
 
-            candidate["semantic_score"] = semantic_score
-            candidate["final_score"] = keyword_score + semantic_score
+            # 5. 多关键词同时命中（覆盖度加分）
+            query_keywords = set(self._extract_keywords(query))
+            matched_set = set(matched_kw)
+            if query_keywords:
+                coverage = len(matched_set) / len(query_keywords)
+                if coverage >= 1.0:  # 所有关键词都命中
+                    semantic_score += 5
+                elif coverage >= 0.5:  # 超过一半命中
+                    semantic_score += 2
+
+            # 6. 索引关键词与查询关键词重叠
+            record_keywords = set(kw.lower() for kw in candidate.get("keywords", []))
+            if record_keywords and query_keywords:
+                overlap = len(record_keywords & query_keywords)
+                semantic_score += overlap * 2
+
+            candidate["semantic_score"] = round(semantic_score, 2)
+            candidate["final_score"] = round(keyword_score + semantic_score, 2)
 
         # 按最终分数排序
         candidates.sort(key=lambda x: x.get("final_score", 0), reverse=True)
