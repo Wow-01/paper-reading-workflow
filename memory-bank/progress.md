@@ -135,5 +135,33 @@ python scripts/query_index.py pageindex/index.jsonl "Hubbard model" 10
 - 处理完成后可直接查询索引
 - `outputs/retrieval_comparison_analysis.md` - 详细分析报告
 
+### 查询功能增强 ✅（基于 PageIndex 思路）
+
+**改进1：索引添加摘要和关键词**
+- `build_pageindex.py` 添加 `extract_keywords()` 和 `generate_auto_summary()`
+- 索引新增 `keywords` 和 `summary` 字段
+- 效果：平均 Top1 分数 +68.2%
+
+**改进2：语义重排序优化**
+- `_semantic_rank()` 多因素综合评分
+- 评分因素：位置、密度、连续性、覆盖度
+- 效果：平均 Top1 分数 +56.7%
+
+**改进3：章节上下文支持**
+- `add_context()` 方法添加前后文
+- 使用：`search_index(path, query, with_context=True)`
+
+**改进4：多轮对话支持**
+- 对话历史功能
+- `_is_followup()` 和 `_expand_query()` 方法
+- 支持追问，自动扩展查询
+
+**测试结果**：
+| 改进项 | 平均分数 | 累计提升 |
+|--------|----------|----------|
+| 基础版本 | 12.5 | - |
+| 改进1（关键词+摘要） | 21.0 | +68.2% |
+| 改进2（语义重排序） | 32.9 | +163.2% |
+
 **下一步**：
 项目已基本完成，可以开始使用。扩展功能待后续迭代。
