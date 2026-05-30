@@ -7,40 +7,163 @@
 - **PDF 提取**：使用 MinerU 提取论文正文、公式、图片、表格
 - **Markdown 清洗**：规范化章节结构、图注、公式格式
 - **PageIndex 构建**：生成可检索的 JSONL 索引，支持问答定位
+- **中英文混合查询**：支持中英文混合关键词搜索
 - **结构化总结**：一页纸总结、章节笔记、术语表、追问清单
 - **公式推导补全**：补全作者省略的中间推导步骤
+
+---
 
 ## 快速开始
 
 ### 环境要求
 
-- Python 3.10+
-- MinerU (magic-pdf)
-- Claude Code（用于调用 skill 生成总结）
+- **Python**: 3.10+（推荐 3.11）
+- **磁盘空间**: 约 60GB（用于 MinerU 模型）
+- **Claude Code**: 用于调用 skill 生成总结（可选）
 
-### 安装
+### 完整安装步骤
+
+#### 步骤 1：克隆项目
 
 ```bash
-# 克隆项目
 git clone <repo-url>
 cd paper-reading-workflow
-
-# 创建虚拟环境
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # Linux/Mac
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 验证安装
-magic-pdf --version
-python -c "import pdfplumber; print('OK')"
 ```
 
-### 使用方法
+#### 步骤 2：创建虚拟环境
 
-#### 单篇处理
+```bash
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# Linux/Mac
+source .venv/bin/activate
+```
+
+#### 步骤 3：安装 PyTorch（CPU 版本）
+
+```bash
+# 必须先安装 CPU 版本，避免 DLL 问题
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
+#### 步骤 4：安装其他依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+#### 步骤 5：下载 MinerU 模型（约 52GB）
+
+```bash
+# 使用镜像加速（可选）
+set HF_ENDPOINT=https://hf-mirror.com  # Windows
+# export HF_ENDPOINT=https://hf-mirror.com  # Linux/Mac
+
+# 下载模型
+python -c "from magic_pdf.model.download import download_models; download_models()"
+```
+
+#### 步骤 6：修复模型目录结构
+
+```bash
+# 进入模型目录（根据实际路径修改）
+cd ~/.cache/huggingface/hub/models--opendatalab--PDF-Extract-Kit-1.0/snapshots/<hash>
+
+# 或者使用默认路径
+# Windows: %USERPROFILE%\.cache\huggingface\hub\models--opendatalab--PDF-Extract-Kit-1.0\snapshots\<hash>
+# Linux/Mac: ~/.cache/huggingface/hub/models--opendatalab--PDF-Extract-Kit-1.0/snapshots/<hash>
+
+# 复制 models 目录下的内容到当前目录
+# Windows
+xcopy /E /I models\* .
+
+# Linux/Mac
+cp -r models/* .
+```
+
+#### 步骤 7：修改 OCR 模型配置
+
+编辑文件：
+```
+.venv/Lib/site-packages/magic_pdf/model/sub_modules/ocr/paddleocr2pytorch/pytorchocr/utils/resources/models_config.yml
+```
+
+将所有 `PP-OCRv3` 改为 `PP-OCRv5`：
+
+```yaml
+# 修改前
+lang:
+  ch_lite:
+    det: ch_PP-OCRv3_det_infer.pth
+    rec: ch_PP-OCRv3_rec_infer.pth
+
+# 修改后
+lang:
+  ch_lite:
+    det: ch_PP-OCRv5_det_infer.pth
+    rec: ch_PP-OCRv5_rec_infer.pth
+```
+
+#### 步骤 8：创建 MinerU 配置文件
+
+创建 `~/.magic-pdf.json`：
+
+```json
+{
+  "models-dir": "~/.cache/huggingface/hub/models--opendatalab--PDF-Extract-Kit-1.0/snapshots/<hash>",
+  "device-mode": "cpu",
+  "table-config": {
+    "is_table_recog_enable": false
+  },
+  "layout-config": {
+    "model": "doclayout_yolo"
+  },
+  "formula-config": {
+    "enable": true
+  },
+  "ocr-config": {
+    "enable": true,
+    "lang": "ch_lite"
+  }
+}
+```
+
+> 注意：将 `models-dir` 替换为实际的模型目录路径。
+
+#### 步骤 9：验证安装
+
+```bash
+# 验证 MinerU
+magic-pdf --version
+# 预期输出: magic-pdf version 1.3.12
+
+# 验证 Python 模块
+python -c "import magic_pdf; print('OK')"
+# 预期输出: OK
+
+# 验证 pdfplumber
+python -c "import pdfplumber; print('OK')"
+# 预期输出: OK
+```
+
+#### 步骤 10：安装 Claude Code Skills（可选）
+
+```bash
+# 安装 academic-researcher skill（用于生成一页纸总结）
+npx skills add shubhamsaboo/awesome-llm-apps@academic-researcher -g -y
+
+# 安装 math-reasoning skill（用于公式推导补全）
+npx skills add lingzhi227/agent-research-skills@math-reasoning -g -y
+```
+
+---
+
+## 使用方法
+
+### 单篇处理
 
 ```bash
 # 将 PDF 放入 projects/ 目录
@@ -50,7 +173,7 @@ cp your-paper.pdf projects/
 python scripts/run_workflow.py --file your-paper.pdf
 ```
 
-#### 批量处理
+### 批量处理
 
 ```bash
 # 处理整个目录
@@ -60,7 +183,7 @@ python scripts/run_workflow.py --dir projects/
 python scripts/run_workflow.py --file paper1.pdf --file paper2.pdf --file paper3.pdf
 ```
 
-#### 可选参数
+### 可选参数
 
 ```bash
 # 指定配置文件
@@ -69,6 +192,23 @@ python scripts/run_workflow.py --file paper.pdf --config config.yaml
 # 详细日志
 python scripts/run_workflow.py --file paper.pdf --verbose
 ```
+
+### 查询索引
+
+处理完成后，可以查询索引：
+
+```bash
+# 基本查询
+python scripts/query_index.py outputs/paper/pageindex/index.jsonl "Mpemba effect"
+
+# 中英文混合查询
+python scripts/query_index.py outputs/paper/pageindex/index.jsonl "量子 Monte Carlo"
+
+# 指定返回结果数量
+python scripts/query_index.py outputs/paper/pageindex/index.jsonl "Hubbard model" 10
+```
+
+---
 
 ## 输出结构
 
@@ -100,9 +240,11 @@ outputs/<pdf_stem>/
 └── 交付指引.md                 # 自动生成的 Claude 执行指引
 ```
 
+---
+
 ## 工作流程
 
-### 阶段1：脚本自动处理
+### 阶段 1：脚本自动处理
 
 ```bash
 python scripts/run_workflow.py --file paper.pdf
@@ -116,13 +258,15 @@ python scripts/run_workflow.py --file paper.pdf
 5. 准备公式输入 → `summary/input-for-formula.md`
 6. 生成交付指引 → `交付指引.md`
 
-### 阶段2：Claude 调用 Skill 生成总结
+### 阶段 2：Claude 调用 Skill 生成总结
 
 脚本完成后，读取 `交付指引.md`，Claude 会：
 
 1. 调用 `academic-researcher` skill 生成 **one-pager.md**
 2. 调用 `math-reasoning` skill 生成 **formula-notes.md**
 3. 直接生成 **section-notes.md**、**glossary.md**、**followups.md**
+
+---
 
 ## 配置说明
 
@@ -147,6 +291,8 @@ logging:
   level: INFO  # 日志级别：DEBUG, INFO, WARNING, ERROR
   format: "%(asctime)s [%(levelname)s] [%(name)s] %(message)s"
 ```
+
+---
 
 ## 输出文件说明
 
@@ -188,6 +334,8 @@ PageIndex 索引文件，每行一个 JSON 记录：
 - `text`：原文片段
 - `source_ref`：页码定位线索
 
+---
+
 ## 错误处理
 
 ### 降级策略
@@ -206,6 +354,8 @@ PageIndex 索引文件，每行一个 JSON 记录：
 单篇失败：`outputs/<pdf_stem>/failure.md`
 批量失败：`outputs/failure-summary.md`
 
+---
+
 ## 目录结构
 
 ```
@@ -223,14 +373,18 @@ paper-reading-workflow/
 │   ├── extract_pdfplumber.py    # pdfplumber 提取
 │   ├── clean_markdown.py        # Markdown 清洗
 │   ├── build_pageindex.py       # PageIndex 构建
+│   ├── query_index.py           # 索引查询
 │   ├── prepare_summary_input.py # 总结输入准备
 │   ├── prepare_formula_input.py # 公式输入准备
 │   └── write_failure_report.py  # 失败报告
 ├── memory-bank/                 # 项目文档
 ├── config.yaml                  # 配置文件
 ├── requirements.txt             # 依赖清单
+├── CHANGELOG.md                 # 更新日志
 └── README.md                    # 本文件
 ```
+
+---
 
 ## 技术栈
 
@@ -238,10 +392,13 @@ paper-reading-workflow/
 - **PDF 提取**：MinerU (magic-pdf 1.3.12)、pdfplumber
 - **Markdown 清洗**：自定义脚本
 - **索引**：PageIndex（JSONL 结构）
+- **查询**：扁平 JSONL + LLM 分层检索
 - **总结生成**：academic-researcher skill
 - **公式推导**：math-reasoning skill
 - **日志**：Python logging
 - **CLI**：argparse
+
+---
 
 ## 使用场景
 
@@ -250,6 +407,9 @@ paper-reading-workflow/
 - **论文精读**：逐节理解方法、推导、假设和结论
 - **公式理解**：补全作者省略的中间推导步骤
 - **批量阅读**：对某个文件夹下的一批相关文献进行连续分析
+- **语义查询**：使用中英文混合关键词查询论文内容
+
+---
 
 ## 验收标准
 
@@ -258,6 +418,9 @@ paper-reading-workflow/
 - ✅ PageIndex 可定位至少 3 个问题的答案片段
 - ✅ 章节级理解笔记覆盖一级标题不少于 80%
 - ✅ 批量模式单篇失败不影响其他论文
+- ✅ 支持中英文混合查询
+
+---
 
 ## 已知限制
 
@@ -265,6 +428,37 @@ paper-reading-workflow/
 - 公式识别依赖 MinerU 的公式检测能力
 - 图片分析依赖 Claude Code 的视觉能力
 - V1 版本不支持跨论文对比
+- 模型下载需要约 52GB 磁盘空间
+
+---
+
+## 常见问题
+
+### Q1: MinerU 安装失败怎么办？
+
+参考 `MinerU完整配置与修复指南.md`，常见问题包括：
+- PyTorch DLL 问题：安装 CPU 版本
+- OCR 模型不匹配：修改 models_config.yml
+- transformers 不兼容：降级到 4.51.3
+
+### Q2: 如何加速 MinerU？
+
+- 使用 GPU 模式（需要 CUDA）
+- 使用 lite 模式（牺牲公式识别）
+- 减少 PDF 页数
+
+### Q3: 查询支持哪些语言？
+
+支持中英文混合查询，如：
+- "Mpemba effect 量子"
+- "Hubbard model 反铁磁"
+- "quantum Monte Carlo 符号问题"
+
+### Q4: 如何自定义输出目录？
+
+修改 `config.yaml` 中的 `outputs.dir` 配置项。
+
+---
 
 ## 后续迭代方向
 
@@ -274,6 +468,14 @@ paper-reading-workflow/
 - 更智能的批量文献管理
 - Web UI 界面
 
+---
+
 ## 许可证
 
 [待定]
+
+---
+
+## 更新日志
+
+详见 [CHANGELOG.md](CHANGELOG.md)
