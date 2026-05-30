@@ -59,6 +59,53 @@ class IndexSearcher:
 
         return results[:top_k]
 
+    def add_context(self, results: List[Dict], context_count: int = 1) -> List[Dict]:
+        """为搜索结果添加上下文。
+
+        Args:
+            results: 搜索结果列表
+            context_count: 上下文段落数量（前后各几个）
+
+        Returns:
+            带上下文的结果列表
+        """
+        for result in results:
+            section = result.get("section_path", "")
+            anchor_id = result.get("anchor_id", "")
+
+            # 获取同一章节的所有记录
+            section_records = [r for r in self.records if r.get("section_path") == section]
+
+            # 找到当前记录的索引
+            current_idx = None
+            for i, r in enumerate(section_records):
+                if r.get("anchor_id") == anchor_id:
+                    current_idx = i
+                    break
+
+            if current_idx is not None:
+                # 获取前文
+                context_before = []
+                for i in range(max(0, current_idx - context_count), current_idx):
+                    text = section_records[i].get("text", "")
+                    if text:
+                        context_before.append(text[:100])
+
+                # 获取后文
+                context_after = []
+                for i in range(current_idx + 1, min(len(section_records), current_idx + context_count + 1)):
+                    text = section_records[i].get("text", "")
+                    if text:
+                        context_after.append(text[:100])
+
+                result["context_before"] = context_before
+                result["context_after"] = context_after
+            else:
+                result["context_before"] = []
+                result["context_after"] = []
+
+        return results
+
     def _normalize_text(self, text: str) -> str:
         """文本标准化：小写、去除多余空格"""
         text = text.lower()
@@ -205,19 +252,25 @@ class IndexSearcher:
         return candidates
 
 
-def search_index(index_path: str, query: str, top_k: int = 5) -> List[Dict]:
+def search_index(index_path: str, query: str, top_k: int = 5, with_context: bool = False) -> List[Dict]:
     """便捷搜索函数。
 
     Args:
         index_path: index.jsonl 文件路径
         query: 查询字符串
         top_k: 返回结果数量
+        with_context: 是否返回上下文
 
     Returns:
         匹配结果列表
     """
     searcher = IndexSearcher(index_path)
-    return searcher.search(query, top_k=top_k)
+    results = searcher.search(query, top_k=top_k)
+
+    if with_context:
+        results = searcher.add_context(results)
+
+    return results
 
 
 def format_results(results: List[Dict], query: str) -> str:
