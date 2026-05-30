@@ -84,12 +84,14 @@ class IndexSearcher:
         return list(set(keywords))  # 去重
 
     def _keyword_match(self, keywords: List[str]) -> List[Dict]:
-        """关键词匹配"""
+        """关键词匹配（支持新字段：keywords, summary）"""
         scored = []
 
         for record in self.records:
             text = record.get("text", "").lower()
             section = record.get("section_path", "").lower()
+            summary = record.get("summary", "").lower()
+            record_keywords = [kw.lower() for kw in record.get("keywords", [])]
 
             # 计算匹配分数
             score = 0
@@ -104,6 +106,18 @@ class IndexSearcher:
                 # 章节匹配（权重3）
                 if kw in section:
                     score += 3
+                    if kw not in matched_kw:
+                        matched_kw.append(kw)
+
+                # 摘要匹配（权重2）
+                if kw in summary:
+                    score += 2
+                    if kw not in matched_kw:
+                        matched_kw.append(kw)
+
+                # 索引关键词匹配（权重5）
+                if kw in record_keywords:
+                    score += 5
                     if kw not in matched_kw:
                         matched_kw.append(kw)
 

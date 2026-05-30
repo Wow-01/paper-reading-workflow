@@ -1,14 +1,121 @@
 """PageIndex 构建模块。
 
 生成 index.jsonl 与 index.meta.json 索引文件。
+支持关键词提取和摘要生成。
 """
 
 import json
 import logging
 import os
 import re
+from typing import List
 
 logger = logging.getLogger(__name__)
+
+
+def extract_keywords(text: str, max_keywords: int = 5) -> List[str]:
+    """从文本中提取关键词。
+
+    提取规则：
+    - 英文术语（大写开头的词组，最多3个单词）
+    - 中文词汇（2-4字）
+    - 缩写（全大写或大写+数字）
+    - 关键概念词
+
+    Args:
+        text: 输入文本
+        max_keywords: 最大关键词数量
+
+    Returns:
+        关键词列表
+    """
+    keywords = []
+
+    # 1. 提取英文术语（大写开头的词组，最多3个单词）
+    en_terms = re.findall(r'[A-Z][a-zA-Z]+(?:\s+[a-z]+){0,2}', text)
+    for term in en_terms:
+        term = term.strip()
+        # 过滤太长的术语
+        if 2 < len(term) < 30 and term not in keywords:
+            keywords.append(term)
+
+    # 2. 提取缩写（全大写或大写+数字，如 QMC, MBL, AFM）
+    abbreviations = re.findall(r'\b[A-Z]{2,}(?:\d+)?\b', text)
+    for abbr in abbreviations:
+        if abbr not in keywords and len(abbr) < 10:
+            keywords.append(abbr)
+
+    # 3. 提取中文词汇（2-4字，更有意义）
+    cn_terms = re.findall(r'[一-鿿]{2,4}', text)
+    for term in cn_terms:
+        if term not in keywords:
+            keywords.append(term)
+
+    # 4. 提取关键概念词（常见学术词汇）
+    concept_patterns = [
+        r'(?:quantum|classical)\s+\w+',
+        r'(?:ground|excited)\s+state',
+        r'(?:phase|quantum)\s+transition',
+        r'(?:fermion|boson|spin)\s+model',
+    ]
+    for pattern in concept_patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        for match in matches:
+            if match.lower() not in [kw.lower() for kw in keywords]:
+                keywords.append(match)
+
+    return keywords[:max_keywords]
+
+
+def generate_summary_prompt(text: str, max_length: int = 200) -> str:
+    """生成摘要提示词（由 Claude 处理）。
+
+    Args:
+        text: 输入文本
+        max_length: 提示词最大长度
+
+    Returns:
+        摘要提示词
+    """
+    # 限制输入长度
+    text_preview = text[:max_length]
+
+    prompt = f"""请用 1-2 句话概括以下内容的核心要点，只返回概括，不要其他内容：
+
+{text_preview}"""
+
+    return prompt
+
+
+def generate_auto_summary(text: str, max_length: int = 100) -> str:
+    """自动生成简单摘要（基于规则，无需 LLM）。
+
+    提取文本的前几句话作为摘要。
+
+    Args:
+        text: 输入文本
+        max_length: 摘要最大长度
+
+    Returns:
+        自动生成的摘要
+    """
+    # 按句子分割（英文句号、中文句号、问号、感叹号）
+    sentences = re.split(r'[.!?。！？]', text)
+
+    # 取前2句话
+    summary_parts = []
+    for sentence in sentences[:2]:
+        sentence = sentence.strip()
+        if len(sentence) > 10:  # 过滤太短的句子
+            summary_parts.append(sentence)
+
+    summary = '. '.join(summary_parts)
+
+    # 限制长度
+    if len(summary) > max_length:
+        summary = summary[:max_length] + '...'
+
+    return summary if summary else text[:max_length]
 
 
 def build_index(clean_md_path: str, output_dir: str) -> tuple[str, str]:
@@ -114,6 +221,8 @@ def _build_records(content: str, sections: list[dict]) -> list[dict]:
     - anchor_id: 段落/公式锚点
     - text: 原文片段
     - source_ref: 页码定位线索
+    - keywords: 关键词列表（新增）
+    - summary: 摘要（新增）
     """
     records = []
     current_section = "unknown"
@@ -141,12 +250,15 @@ def _build_records(content: str, sections: list[dict]) -> list[dict]:
         if line.strip().startswith("$$") or line.strip().startswith("\\["):
             equation_counter += 1
             formula_text = _extract_formula_block(lines, i)
-            records.append({
+            record = {
                 "section_path": current_section,
                 "anchor_id": f"eq{equation_counter}",
                 "text": formula_text[:500],  # 限制长度
                 "source_ref": f"#{current_section}",
-            })
+                "keywords": extract_keywords(formula_text, max_keywords=3),
+                "summary": generate_auto_summary(formula_text, max_length=50),
+            }
+            records.append(record)
             # 跳过公式块
             while i < len(lines) and not (lines[i].strip().endswith("$$") or lines[i].strip().endswith("\\]")):
                 i += 1
@@ -158,12 +270,15 @@ def _build_records(content: str, sections: list[dict]) -> list[dict]:
         if fig_match:
             figure_counter += 1
             fig_id = fig_match.group(2)
-            records.append({
+            record = {
                 "section_path": current_section,
                 "anchor_id": f"fig{fig_id}",
                 "text": line.strip()[:500],
                 "source_ref": f"#{current_section}",
-            })
+                "keywords": extract_keywords(line, max_keywords=3),
+                "summary": generate_auto_summary(line, max_length=50),
+            }
+            records.append(record)
             i += 1
             continue
 
@@ -172,12 +287,15 @@ def _build_records(content: str, sections: list[dict]) -> list[dict]:
         if table_match:
             table_counter += 1
             table_id = table_match.group(1)
-            records.append({
+            record = {
                 "section_path": current_section,
                 "anchor_id": f"table{table_id}",
                 "text": line.strip()[:500],
                 "source_ref": f"#{current_section}",
-            })
+                "keywords": extract_keywords(line, max_keywords=3),
+                "summary": generate_auto_summary(line, max_length=50),
+            }
+            records.append(record)
             i += 1
             continue
 
@@ -199,12 +317,15 @@ def _build_records(content: str, sections: list[dict]) -> list[dict]:
                 else:
                     section_id = "0"
 
-                records.append({
+                record = {
                     "section_path": current_section,
                     "anchor_id": f"para-{section_id}-{paragraph_index}",
                     "text": para_text[:500],  # 限制长度
                     "source_ref": f"#{current_section}",
-                })
+                    "keywords": extract_keywords(para_text, max_keywords=5),
+                    "summary": generate_auto_summary(para_text, max_length=100),
+                }
+                records.append(record)
 
         i += 1
 
