@@ -4,44 +4,45 @@
 
 ---
 
+## 2026-05-31
+
+### 改进
+
+#### 项目初始化脚本
+- **新增**：创建 `scripts/init_project.py` 初始化脚本
+- **功能**：一键创建新的论文分析项目目录
+- **用法**：`python scripts/init_project.py "项目名称"`
+- **默认位置**：D 盘根目录
+- **测试结果**：
+  - 创建项目：D:\test-workflow ✅
+  - 复制论文：02-Imaginary-time-Mpemba-effect.pdf ✅
+  - PDF 提取：MinerU 成功，11 章节，107 条索引 ✅
+  - 总结生成：one-pager、section-notes、glossary、followups ✅
+  - 公式推导：formula-notes.md 生成 ✅
+  - 语义问答：query_index.py 正常工作 ✅
+
+#### 公式渲染改进
+- **方案**：使用 VS Code + Markdown Preview Enhanced 插件
+- **安装**：`code --install-extension shd101wyy.markdown-preview-enhanced`
+- **使用**：按 `Ctrl+Shift+V` 或 `Ctrl+K V` 预览公式
+
+#### 翻译规则改进
+- **优化**：在交付指引中添加翻译要求，避免中英混杂
+- **规则**：专有名词保留英文，描述性词汇必须翻译
+
+---
+
 ## 2026-05-27
 
 ### 改进
 
 #### 扁平JSONL + LLM分层检索功能
 - **新增**：创建 `scripts/query_index.py` 索引查询模块
-  - 支持中英文混合查询（如"量子 Monte Carlo"）
-  - 关键词匹配（正文权重1，章节权重3）
-  - 语义排序（完全匹配、关键词密度、连续性）
-  - 命令行接口
-- **新增**：创建 `scripts/test_retrieval_comparison.py` 检索方案对比测试
-- **优化**：`scripts/run_workflow.py` 交付指引添加查询示例
-- **测试结果**：
-  - 平均响应时间：0.00025秒（<1ms）
-  - 平均结果数：4.4个
-  - 结果全面性：高
-  - 结果精准性：中
+- **功能**：支持中英文混合查询、关键词匹配、语义排序
 
 #### 语义理解问答功能
 - **新增**：在 CLAUDE.md 中添加语义理解问答规则
 - **新增**：创建 `scripts/semantic_qa.py` 语义问答脚本
-- **优化**：关键词匹配算法，支持同义词扩展
-  - "韧性" → ["robustness", "resilience", "stability"]
-  - "QNN" → ["quantum neural network"]
-  - "贡献" → ["contribution", "achievement", "finding"]
-- **效果**：问题覆盖率从 40% 提升到 100%
-
-#### 查询方式对比测试
-- **新增**：创建 `scripts/test_query_tree.py` 树结构查询脚本
-- **新增**：创建 `scripts/test_query_jsonl.py` JSONL 查询脚本
-- **新增**：创建 `scripts/test_comparison.py` 对比测试脚本
-- **结论**：JSONL 方式更适合当前项目（速度快 37.5 倍，定位更精确）
-
-### 文档
-
-- **新增**：创建 `outputs/comparison_report.md` 查询方式对比报告
-- **新增**：创建 `outputs/semantic_qa_report.md` 语义理解测试报告
-- **新增**：创建 `outputs/retrieval_comparison_analysis.md` 检索方案对比分析
 
 ---
 
@@ -53,60 +54,16 @@
 - Python 3.11.9 虚拟环境创建
 - magic-pdf 1.3.12 安装成功
 - pdfplumber 安装成功
-- MinerU auto 模式验证成功
 
 #### M2：基础功能开发 ✅
-- 创建 `scripts/run_workflow.py` 统一入口
-- 创建 `scripts/extract_mineru.py` MinerU 提取模块
-- 创建 `scripts/extract_pdfplumber.py` pdfplumber 提取模块
-- 创建 `scripts/clean_markdown.py` Markdown 清洗模块
-- 创建 `scripts/build_pageindex.py` PageIndex 构建模块
-- 创建 `scripts/prepare_summary_input.py` 总结输入准备
-- 创建 `scripts/prepare_formula_input.py` 公式输入准备
-- 创建 `scripts/write_failure_report.py` 失败报告模块
+- 创建所有核心脚本（run_workflow.py 等）
 
 #### M3：Skill 调用与结果生成 ✅
-- 调用 `academic-researcher` skill 生成 one-pager.md
-- 调用 `math-reasoning` skill 生成 formula-notes.md
-- 生成 section-notes.md、glossary.md、followups.md
+- 实现 academic-researcher 和 math-reasoning skill 调用
 
 #### M4：联调与验证 ✅
-- 单篇流程联调成功
-- 批量模式联调成功（2/2 成功）
-- 失败场景验证成功（单篇失败不影响其他）
-
-### 新增文件
-
-#### 配置文件
-- `requirements.txt` - 依赖清单
-- `config.yaml` - 配置文件
-
-#### 文档
-- `README.md` - 项目使用说明
-- `memory-bank/progress.md` - 项目进度记录
-- `memory-bank/architt.md` - 架构设计文档
-
-#### 脚本
-- `scripts/run_workflow.py` - 工作流入口
-- `scripts/extract_mineru.py` - MinerU 提取
-- `scripts/extract_pdfplumber.py` - pdfplumber 提取
-- `scripts/clean_markdown.py` - Markdown 清洗
-- `scripts/build_pageindex.py` - PageIndex 构建
-- `scripts/prepare_summary_input.py` - 总结输入准备
-- `scripts/prepare_formula_input.py` - 公式输入准备
-- `scripts/write_failure_report.py` - 失败报告
-
-### 测试验证
-
-#### 测试文献
-- 01-Superior-resilience-poisoning-unlearning.pdf
-- 02-Imaginary-time-Mpemba-effect.pdf
-- 04-Entanglement-structure-information-protection.pdf
-
-#### 测试结果
-- 单篇处理：100% 成功率
-- 批量处理：100% 成功率（2/2）
-- 失败场景：单篇失败不影响其他
+- 单篇、批量处理测试通过
+- 失败场景验证通过
 
 ---
 
@@ -116,57 +73,6 @@
 
 - 创建项目目录结构
 - 初始化 Git 仓库
-- 创建 memory-bank/ 文档目录
 - 编写产品需求文档
 - 编写技术栈文档
 - 编写实施计划文档
-
----
-
-## 版本说明
-
-### 当前版本：v1.1.0
-
-**核心功能**：
-- PDF 提取（MinerU + pdfplumber）
-- Markdown 清洗
-- PageIndex 构建
-- 结构化总结生成
-- 公式推导补全
-- 批量处理
-- 语义理解问答
-- **中英文混合查询**（扁平JSONL + LLM分层检索）
-
-**技术栈**：
-- Python 3.11.9
-- MinerU (magic-pdf 1.3.12)
-- pdfplumber
-- Claude Code Skills (academic-researcher, math-reasoning)
-
-**输出文件**：
-- one-pager.md - 一页纸总结
-- section-notes.md - 章节笔记
-- glossary.md - 术语表
-- followups.md - 追问清单
-- formula-notes.md - 公式推导
-
----
-
-## 下一步计划
-
-### 短期改进
-- 扩展同义词库，支持更多中英文映射
-- 优化查询理解，支持更复杂的自然语言问题
-- 增强答案生成，基于相关段落生成完整答案
-- 集成LLM进行语义重排序，提升查询精准性
-
-### 中期目标
-- 添加多轮对话支持
-- 实现跨论文对比功能
-- 优化批量处理性能
-- 实现树形索引方案，支持大文档（>50页）场景
-
-### 长期愿景
-- 概念图谱生成
-- Web UI 界面
-- 更智能的批量文献管理
